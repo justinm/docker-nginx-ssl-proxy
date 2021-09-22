@@ -1,23 +1,44 @@
 #!/usr/bin/env bash
 
-CERT_PATH=/certs
-HOSTNAME=${HOSTNAME:=example.com}
-TARGET_PORT=${HTTP_TARGET:="80"}
-RESOLVER_IP=127.0.0.11
+set -e
 
-if [[ ! -e "/certs/server.crt" ]] || [[ ! -e "/certs/server.key" ]]; then
-    echo "Generating a certificate for $HOSTNAME"
+IFS=',' read -r -a HOSTNAMES <<< "$HOSTNAMES"
+IFS=',' read -r -a TARGETS <<< "$TARGETS"
 
-    openssl req -x509 -nodes -days 365 -sha1 -keyout ${CERT_PATH}/server.key -out ${CERT_PATH}/server.crt -subj /CN=${HOSTNAME}/ 
-fi
+CERT_PATH="${CERT_PATH:=/certs}"
+RESOLVER_IP="${RESOLVER_IP:=127.0.0.11}"
 
 cp /etc/nginx/nginx.template.conf /etc/nginx/nginx.conf
 
-sed -i -e "s|\$HOSTNAME|$HOSTNAME|g" /etc/nginx/nginx.conf
-sed -i -e "s|\$TARGET_PORT|$TARGET_PORT|g" /etc/nginx/nginx.conf
-sed -i -e "s|\$RESOLVER_IP|$RESOLVER_IP|g" /etc/nginx/nginx.conf
+sed -i -e "s|{{RESOLVER_IP}}|$RESOLVER_IP|g" /etc/nginx/nginx.conf
 
-cat /etc/nginx/nginx.conf
-cat /etc/resolv.conf
+[[ -e "/etc/nginx/conf.d/default.conf" ]] && rm /etc/nginx/conf.d/default.conf
+
+openssl req -x509 -nodes -days 365 -sha1 -subj /CN=localhost/ -keyout ${CERT_PATH}/localhost.key -out ${CERT_PATH}/localhost.crt
+
+for index in "${!HOSTNAMES[@]}"
+do
+    HOSTNAME="${HOSTNAMES[index]}"
+    TARGET="${TARGETS[index]}"
+
+    echo "Will add $HOSTNAME to the certificate..."
+
+    if [[ ! -e "${CERT_PATH}/${HOSTNAME}.key" ]] || [[ ! -e "${CERT_PATH}/${HOSTNAME}.crt" ]]
+    then
+        openssl req -x509 -nodes -days 365 -sha1 -subj /CN=${HOSTNAME}/ -keyout ${CERT_PATH}/${HOSTNAME}.key -out ${CERT_PATH}/${HOSTNAME}.crt
+    fi
+
+    SITE_CONF="/etc/nginx/conf.d/$HOSTNAME.conf"
+
+    if [[ ! -e "$SITE_CONF" ]]
+    then
+        echo "Will create $SITE_CONF..."
+        cp /etc/nginx/nginx.site.template.conf $SITE_CONF
+        sed -i -e "s|{{HOSTNAME}}|$HOSTNAME|g" $SITE_CONF
+        sed -i -e "s|{{TARGET}}|${TARGET}|g" $SITE_CONF
+
+        cat $SITE_CONF
+    fi
+done
 
 exec nginx -g "daemon off;"

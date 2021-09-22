@@ -5,9 +5,8 @@ services:
     ports:
       - 0.0.0.0:443:443
     environment:
-     - HOSTNAME=energysmartwaterheater.com
-    #  - HOSTNAME=devices.irissmarthome.com
-     - TARGET_PORT=80
+     - HOSTNAMES=dasnas.justinmccormick.com,pihole.justinmccormick.com
+     - TARGETS=http://192.168.1.43:5000,http://192.168.1.43:8080
 
 # networks:
 #   default:
