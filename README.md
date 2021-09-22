@@ -8,6 +8,7 @@ port, allowing for quick proxying to multiple destinations using only one servic
 * CA signed certificates, easily import the generated CA cert into your local keychain.
 * Individual certificates per domain
 * Multiple SSL hosts
+* WebSocket Support
 
 ## Configuration
 
