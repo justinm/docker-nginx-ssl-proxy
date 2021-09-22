@@ -51,6 +51,12 @@ for index in "${!HOSTNAMES[@]}"
 do
     HOSTNAME="${HOSTNAMES[index]}"
     TARGET="${TARGETS[index]}"
+    TARGET_PROTOCOL="$(echo $TARGET | grep :// | sed -e's,^\(.*://\).*,\1,g')"
+    url="$(echo ${TARGET/$TARGET_PROTOCOL/})"
+
+    TARGET_PORT="$(echo ${url} | cut -d/ -f1)"
+    TARGET_HOSTNAME="$(echo $TARGET_PORT | sed -e 's,:.*,,g')"
+    TARGET_PORT="$(echo $TARGET_PORT | sed -e 's,^.*:,:,g' -e 's,.*:\([0-9]*\).*,\1,g' -e 's,[^0-9],,g')"
 
     generateCert $HOSTNAME
 
@@ -58,10 +64,12 @@ do
 
     [[ -e "$SITE_CONF" ]] && rm "$SITE_CONF"
 
-    echo "[CONF] Create for $HOSTNAME in $SITE_CONF"
+    echo "[CONF] Proxy $HOSTNAME to ${TARGET_PROTOCOL}${TARGET_HOSTNAME}:${TARGET_PORT} in $SITE_CONF"
     cp /etc/nginx/nginx.site.template.conf $SITE_CONF
     sed -i -e "s|{{HOSTNAME}}|$HOSTNAME|g" $SITE_CONF
-    sed -i -e "s|{{TARGET}}|${TARGET}|g" $SITE_CONF
+    sed -i -e "s|{{TARGET_HOSTNAME}}|${TARGET_HOSTNAME}|g" $SITE_CONF
+    sed -i -e "s|{{TARGET_PROTOCOL}}|${TARGET_PROTOCOL}|g" $SITE_CONF
+    sed -i -e "s|{{TARGET_PORT}}|${TARGET_PORT}|g" $SITE_CONF
 done
 
 cat ${CERT_PATH}/ca.crt
